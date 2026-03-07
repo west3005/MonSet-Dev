@@ -45,20 +45,27 @@ struct RuntimeConfig
 
   // --- sensor scale ---
   float sensor_zero_level = 0.0f;
-  float sensor_divider = 1000.0f;
+  float sensor_divider    = 1000.0f;
 
   // --- time / NTP ---
   bool ntp_enabled = true;
   char ntp_host[64]{};
   uint32_t ntp_resync_sec = 86400; // раз в сутки
 
+  // Заполнение из жёстких констант Config::...
   void setDefaultsFromConfig();
+
+  // Проверка и исправление "критичных" значений
   bool validateAndFix();
 
+  // Загрузка/сохранение на SD
   bool loadFromSd(const char* filename);
   bool saveToSd(const char* filename) const;
 
+  // Загрузка из JSON-строки
   bool loadFromJson(const char* json, size_t len);
+
+  // Лог параметров
   void log() const;
 };
 

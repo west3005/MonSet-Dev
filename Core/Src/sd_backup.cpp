@@ -46,8 +46,7 @@ void SdBackup::make_full_path(char* out, size_t out_sz, const char* fname) const
   std::snprintf(out, out_sz, "%s/%s", drive, fname); // "0:/backup.json"
 }
 
-bool SdBackup::init()
-{
+/*bool SdBackup::init() {
   char drive[3];
   make_drive(drive, sizeof(drive));
 
@@ -55,6 +54,40 @@ bool SdBackup::init()
   if (fr != FR_OK) {
     DBG.error("SD: mount fail drive=%s (FR=%d %s)", drive, (int)fr, frStr(fr));
     m_mounted = false;
+    // Не считаем это фатальной ошибкой: просто работаем без SD
+    return false;
+  }
+
+  m_mounted = true;
+  DBG.info("SD: mounted drive=%s", drive);
+  return true;
+}*/
+bool SdBackup::init() {
+  // Если уже признали SD “сломанной” — даже не пытаемся
+  if (m_broken) {
+    DBG.warn("SD: previously marked as broken, skip init");
+    m_mounted = false;
+    return false;
+  }
+
+  char drive[3];
+  make_drive(drive, sizeof(drive));
+
+  const uint32_t t0 = HAL_GetTick();
+  const uint32_t timeoutMs = 5000;
+
+  FRESULT fr = FR_INT_ERR;
+
+  while ((HAL_GetTick() - t0) < timeoutMs) {
+    fr = f_mount(&m_fatfs, drive, 1);
+    if (fr == FR_OK) break;
+    HAL_Delay(50);
+  }
+
+  if (fr != FR_OK) {
+    DBG.error("SD: mount timeout, last FR=%d %s", (int)fr, frStr(fr));
+    m_mounted = false;
+    m_broken = true;  // помечаем SD как нерабочую на весь срок работы
     return false;
   }
 

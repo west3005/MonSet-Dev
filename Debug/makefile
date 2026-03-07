@@ -107,7 +107,7 @@ main-build: MonSet.elf secondary-outputs
 
 # Tool invocations
 MonSet.elf MonSet.map: $(OBJS) $(USER_OBJS) C:\Users\My\STM32CubeIDE\workspace_1.13.2\MonSet\STM32F407VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "MonSet.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\My\STM32CubeIDE\workspace_1.13.2\MonSet\STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MonSet.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+	arm-none-eabi-g++ -o "MonSet.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\My\STM32CubeIDE\workspace_1.13.2\MonSet\STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MonSet.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

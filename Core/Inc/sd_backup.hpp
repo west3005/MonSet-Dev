@@ -36,6 +36,7 @@ public:
 
 private:
     bool  m_mounted = false;
+    bool m_broken  = false;
     FATFS m_fatfs{};
     FIL   m_file{};
 

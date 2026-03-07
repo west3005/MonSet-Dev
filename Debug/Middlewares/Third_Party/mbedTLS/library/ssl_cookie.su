@@ -1,8 +1,7 @@
-../Middlewares/Third_Party/mbedTLS/library/ssl_misc.h:507:19:mbedtls_ssl_chk_buf_ptr	24	static
-../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:61:6:mbedtls_ssl_cookie_init	16	static
-../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:80:6:mbedtls_ssl_cookie_set_timeout	16	static
-../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:85:6:mbedtls_ssl_cookie_free	16	static
-../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:104:5:mbedtls_ssl_cookie_setup	72	static
-../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:163:12:ssl_cookie_hmac	56	static
-../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:189:5:mbedtls_ssl_cookie_write	56	static
-../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:278:5:mbedtls_ssl_cookie_check	88	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:163:12:ssl_cookie_hmac	64	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:61:6:mbedtls_ssl_cookie_init	8	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:80:6:mbedtls_ssl_cookie_set_timeout	0	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:85:6:mbedtls_ssl_cookie_free	8	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:104:5:mbedtls_ssl_cookie_setup	48	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:189:5:mbedtls_ssl_cookie_write	32	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cookie.c:278:5:mbedtls_ssl_cookie_check	64	static

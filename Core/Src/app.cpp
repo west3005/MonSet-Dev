@@ -21,11 +21,12 @@ extern "C" {
   extern UART_HandleTypeDef huart3;
   extern SPI_HandleTypeDef  hspi1;
   extern RTC_HandleTypeDef  hrtc;
+  extern bool g_sd_disabled;            // флаг "SD отключена" из main.cpp
 
-#include "socket.h"
-#include "dns.h"
-#include "w5500.h"
-#include "wizchip_conf.h"
+  #include "socket.h"
+  #include "dns.h"
+  #include "w5500.h"
+  #include "wizchip_conf.h"
 }
 
 static W5500Net eth;
@@ -60,15 +61,16 @@ static bool startsWith(const char* s, const char* prefix)
 // ============================================================================
 // ETH
 // ============================================================================
-static bool ethLinkUpAfterInit()
-{
+static bool ethLinkUpAfterInit() {
   uint8_t link = 0;
-  ctlwizchip(CW_GET_PHYLINK, (void*)&link);
+  if (ctlwizchip(CW_GET_PHYLINK, (void*)&link) != 0) {
+    DBG.error("ETH: CW_GET_PHYLINK failed");
+    return false;
+  }
   return (link != 0);
 }
 
-static bool ensureEthReadyAndLinkUp()
-{
+static bool ensureEthReadyAndLinkUp() {
   if (!eth.ready()) {
     DBG.info("ETH: init...");
     if (!eth.init(&hspi1, Config::W5500_DHCP_TIMEOUT_MS)) {
@@ -77,12 +79,25 @@ static bool ensureEthReadyAndLinkUp()
     }
   }
 
-  if (!ethLinkUpAfterInit()) {
-    DBG.error("ETH: link DOWN");
-    return false;
+  // Ограниченный опрос PHY, чтобы не залипать
+  uint8_t link = 0;
+  const int maxTries = 50; // ~5 секунд при шаге 100 мс
+  for (int i = 0; i < maxTries; ++i) {
+    if (ctlwizchip(CW_GET_PHYLINK, (void*)&link) != 0) {
+      DBG.error("ETH: CW_GET_PHYLINK failed");
+      return false;
+    }
+    if (link != PHY_LINK_OFF) {
+      DBG.info("ETH: PHY link UP (try %d)", i + 1);
+      return true;
+    }
+    DBG.warn("ETH: PHY link OFF (try %d/%d)", i + 1, maxTries);
+    HAL_Delay(100);
+    IWDG->KR = 0xAAAA;   // подкармливаем во время ожидания PHY
   }
 
-  return true;
+  DBG.error("ETH: no PHY link after %d tries, continue without ETH", maxTries);
+  return false;
 }
 
 // ============================================================================
@@ -382,61 +397,73 @@ static void unixToDateTime(uint32_t unixSec, DateTime& out)
 
 static bool sntpGetUnixTime(const char* host, uint32_t& unixSec)
 {
-  uint8_t ip[4]{};
-  if (!resolveHost(host, ip)) {
-    DBG.error("NTP: resolveHost(%s) failed", host);
-    return false;
-  }
+  const int maxAttempts = 3;
 
-  DBG.info("NTP: %s -> %u.%u.%u.%u", host, ip[0], ip[1], ip[2], ip[3]);
-
-  const uint8_t sn = 2;
-  const uint16_t lport = 40000;
-
-  uint8_t pkt[48]{};
-  pkt[0] = 0x1B;
-
-  if (socket(sn, Sn_MR_UDP, lport, 0) != sn) {
-    DBG.error("NTP: socket() failed");
-    close(sn);
-    return false;
-  }
-
-  int32_t s = sendto(sn, pkt, sizeof(pkt), ip, NTP_PORT);
-  if (s != (int32_t)sizeof(pkt)) {
-    DBG.error("NTP: sendto failed s=%ld", (long)s);
-    close(sn);
-    return false;
-  }
-
-  uint32_t t0 = HAL_GetTick();
-  while ((HAL_GetTick() - t0) < NTP_TIMEOUT_MS) {
-    uint8_t rx[48];
-    uint8_t rip[4];
-    uint16_t rport = 0;
-    int32_t r = recvfrom(sn, rx, sizeof(rx), rip, &rport);
-    if (r >= 48) {
-      close(sn);
-
-      uint32_t ntpSec =
-        ((uint32_t)rx[40] << 24) | ((uint32_t)rx[41] << 16) |
-        ((uint32_t)rx[42] <<  8) | ((uint32_t)rx[43] <<  0);
-
-      const uint32_t NTP_TO_UNIX = 2208988800UL;
-      if (ntpSec < NTP_TO_UNIX) {
-        DBG.error("NTP: bad ntpSec=%lu", (unsigned long)ntpSec);
-        return false;
-      }
-
-      unixSec = ntpSec - NTP_TO_UNIX;
-      return true;
+  for (int attempt = 1; attempt <= maxAttempts; ++attempt) {
+    uint8_t ip[4]{};
+    if (!resolveHost(host, ip)) {
+      DBG.error("NTP: resolveHost(%s) failed (attempt %d/%d)",
+                host, attempt, maxAttempts);
+      return false;
     }
 
-    HAL_Delay(10);
+    DBG.info("NTP: %s -> %u.%u.%u.%u (attempt %d/%d)",
+             host, ip[0], ip[1], ip[2], ip[3], attempt, maxAttempts);
+
+    const uint8_t sn = 2;
+    const uint16_t lport = 40000 + attempt;
+
+    uint8_t pkt[48]{};
+    pkt[0] = 0x1B;
+
+    if (socket(sn, Sn_MR_UDP, lport, 0) != sn) {
+      DBG.error("NTP: socket() failed (attempt %d/%d)", attempt, maxAttempts);
+      close(sn);
+      continue;
+    }
+
+    int32_t s = sendto(sn, pkt, sizeof(pkt), ip, NTP_PORT);
+    if (s != (int32_t)sizeof(pkt)) {
+      DBG.error("NTP: sendto failed s=%ld (attempt %d/%d)",
+                (long)s, attempt, maxAttempts);
+      close(sn);
+      continue;
+    }
+
+    uint32_t t0 = HAL_GetTick();
+    while ((HAL_GetTick() - t0) < NTP_TIMEOUT_MS) {
+      uint8_t rx[48];
+      uint8_t rip[4];
+      uint16_t rport = 0;
+      int32_t r = recvfrom(sn, rx, sizeof(rx), rip, &rport);
+      if (r >= 48) {
+        close(sn);
+
+        uint32_t ntpSec =
+          ((uint32_t)rx[40] << 24) | ((uint32_t)rx[41] << 16) |
+          ((uint32_t)rx[42] <<  8) | ((uint32_t)rx[43] <<  0);
+
+        const uint32_t NTP_TO_UNIX = 2208988800UL;
+        if (ntpSec < NTP_TO_UNIX) {
+          DBG.error("NTP: bad ntpSec=%lu (attempt %d/%d)",
+                    (unsigned long)ntpSec, attempt, maxAttempts);
+          break;
+        }
+
+        unixSec = ntpSec - NTP_TO_UNIX;
+        DBG.info("NTP: success, unix=%lu (attempt %d/%d)",
+                 (unsigned long)unixSec, attempt, maxAttempts);
+        return true;
+      }
+
+      HAL_Delay(10);
+    }
+
+    DBG.error("NTP: timeout (attempt %d/%d)", attempt, maxAttempts);
+    close(sn);
   }
 
-  DBG.error("NTP: timeout");
-  close(sn);
+  DBG.error("NTP: all %d attempts failed", maxAttempts);
   return false;
 }
 
@@ -470,24 +497,36 @@ void App::ledBlink(uint8_t count, uint32_t ms)
 void App::init()
 {
   DBG.info("APP INIT MARK: %s %s", __DATE__, __TIME__);
-
+  DBG.info("STEP 1: RTC init");
   m_rtc.init();
+  DBG.info("STEP 2: Modbus init");
   m_modbus.init();
-  m_sdBackup.init();
 
-  bool loaded = Cfg().loadFromSd(RUNTIME_CONFIG_FILENAME);
-  if (!loaded) {
-    DBG.warn("CFG: not loaded -> creating %s", RUNTIME_CONFIG_FILENAME);
-    (void)Cfg().saveToSd(RUNTIME_CONFIG_FILENAME);
+  DBG.info("STEP 3: SD backup init");
+  bool sdOk = false;
+
+  if (!g_sd_disabled) {
+    uint32_t t0 = HAL_GetTick();
+    sdOk = m_sdBackup.init();
+    uint32_t dt = HAL_GetTick() - t0;
+    DBG.info("STEP 3 done, sdOk=%d (dt=%lu ms)", sdOk ? 1 : 0, (unsigned long)dt);
+  } else {
+    DBG.warn("STEP 3: skipped (SD disabled after watchdog reset)");
   }
-  Cfg().log();
 
-  // Подхват runtime config с SD
-  (void)Cfg().loadFromSd(RUNTIME_CONFIG_FILENAME);
-  Cfg().log();
+  DBG.info("STEP 4: load cfg from SD");
+  bool loaded = false;
+  if (!g_sd_disabled && sdOk) {
+    loaded = Cfg().loadFromSd(RUNTIME_CONFIG_FILENAME);
+  }
+  DBG.info("STEP 4 done, loaded=%d", loaded ? 1 : 0);
 
-  // Не удаляем журнал автоматически — иначе можно потерять данные
-  // (void)m_sdBackup.remove();
+  if (!loaded) {
+    DBG.warn("CFG: not loaded -> using defaults (no SD write)");
+    Cfg().setDefaultsFromConfig();
+  }
+  DBG.info("STEP 5: log cfg");
+  Cfg().log();
 
   m_gsm.powerOff();
 
@@ -585,7 +624,7 @@ bool App::syncRtcWithNtpIfNeeded(const char* tag, bool verbose)
   bool firstCycle = true;
 
   while (true) {
-	  CfgUartBridge_Tick();
+    CfgUartBridge_Tick();
     if (eth.ready()) eth.tick();
 
     m_mode = readMode();
@@ -618,22 +657,24 @@ bool App::syncRtcWithNtpIfNeeded(const char* tag, bool verbose)
     ledBlink(1, 50);
 
     // ---- SD журнал ----
-    char line[320];
-    int lenLine = std::snprintf(
-      line, sizeof(line),
-      "{\"ts\":%s,\"values\":{\"metricId\":\"%s\",\"value\":%.3f,"
-      "\"measureTime\":\"20%02u-%02u-%02uT%02u:%02u:%02u.000Z\"}}",
-      tsStr,
-      Cfg().metric_id,
-      val,
-      (unsigned)ts.year, (unsigned)ts.month, (unsigned)ts.date,
-      (unsigned)ts.hours, (unsigned)ts.minutes, (unsigned)ts.seconds
-    );
+    if (!g_sd_disabled) {
+      char line[320];
+      int lenLine = std::snprintf(
+        line, sizeof(line),
+        "{\"ts\":%s,\"values\":{\"metricId\":\"%s\",\"value\":%.3f,"
+        "\"measureTime\":\"20%02u-%02u-%02uT%02u:%02u:%02u.000Z\"}}",
+        tsStr,
+        Cfg().metric_id,
+        val,
+        (unsigned)ts.year, (unsigned)ts.month, (unsigned)ts.date,
+        (unsigned)ts.hours, (unsigned)ts.minutes, (unsigned)ts.seconds
+      );
 
-    if (lenLine > 0 && lenLine < (int)sizeof(line)) {
-      if (!m_sdBackup.appendLine(line)) DBG.error("SD: appendLine failed");
-    } else {
-      DBG.error("SD: snprintf line failed/overflow (len=%d)", lenLine);
+      if (lenLine > 0 && lenLine < (int)sizeof(line)) {
+        if (!m_sdBackup.appendLine(line)) DBG.error("SD: appendLine failed");
+      } else {
+        DBG.error("SD: snprintf line failed/overflow (len=%d)", lenLine);
+      }
     }
 
     // ---- Self-test POST on BOOT/WAKE ----
@@ -722,11 +763,19 @@ bool App::syncRtcWithNtpIfNeeded(const char* tag, bool verbose)
     }
 
     firstCycle = false;
+
+    // --- кормим watchdog в самом конце цикла ---
+    IWDG->KR = 0xAAAA;
   }
 }
 
 void App::transmitBuffer()
 {
+  if (g_sd_disabled) {
+    DBG.warn("SD disabled -> no journal to transmit");
+    return;
+  }
+
   LinkChannel ch = readChannel();
   DBG.info("======== ОТПРАВКА ЖУРНАЛА (%s) ========",
            (ch == LinkChannel::Eth) ? "ETH" : "GSM");
@@ -793,6 +842,11 @@ void App::transmitSingle(float value, const DateTime& dt)
 
 void App::retransmitBackup()
 {
+  if (g_sd_disabled) {
+    DBG.warn("SD disabled -> skip retransmitBackup");
+    return;
+  }
+
   LinkChannel ch = readChannel();
 
   while (m_sdBackup.exists()) {

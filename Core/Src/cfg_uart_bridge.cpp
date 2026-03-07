@@ -20,8 +20,6 @@ static uint32_t s_jsonNeed = 0;
 static uint32_t s_jsonGot  = 0;
 static char s_jsonBuf[2048];
 
-static bool s_setKvMode = false;
-
 static void uartSend(const char* s) {
   if (!s) return;
   HAL_UART_Transmit(&huart6, (uint8_t*)s, (uint16_t)std::strlen(s), 200);
@@ -39,6 +37,23 @@ static void ipToStr(const uint8_t ip[4], char* out, size_t outSz) {
 static void macToStr(const uint8_t mac[6], char* out, size_t outSz) {
   std::snprintf(out, outSz, "%02X:%02X:%02X:%02X:%02X:%02X",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+// Мини‑конвертер float -> "[-]I.FFFFFF" без printf-float
+static void ftoa6(float x, char* out, size_t outSz) {
+  if (!out || outSz < 4) return;
+
+  bool neg = (x < 0.0f);
+  if (neg) x = -x;
+
+  uint32_t ip = (uint32_t)x;
+  float frac = x - (float)ip;
+  uint32_t fp = (uint32_t)(frac * 1000000.0f + 0.5f);
+
+  if (fp >= 1000000UL) { ip += 1; fp = 0; }
+
+  if (neg) std::snprintf(out, outSz, "-%lu.%06lu", (unsigned long)ip, (unsigned long)fp);
+  else     std::snprintf(out, outSz, "%lu.%06lu",  (unsigned long)ip, (unsigned long)fp);
 }
 
 static void emitKv(const char* key, const char* val) {
@@ -67,7 +82,7 @@ static void emitU8(const char* key, uint8_t v) {
 
 static void emitF(const char* key, float v) {
   char b[48];
-  std::snprintf(b, sizeof(b), "%.6f", (double)v);
+  ftoa6(v, b, sizeof(b));
   emitKv(key, b);
 }
 
@@ -135,16 +150,6 @@ static void finishAndReboot(bool ok) {
 static void handleLine(const char* s) {
   if (!s || !*s) return;
 
-  // We keep SETCFG key=value mode disabled by default:
-  // (you can implement it later if needed)
-  if (s_setKvMode) {
-    if (std::strcmp(s, "END") == 0) {
-      finishAndReboot(true);
-      return;
-    }
-    return;
-  }
-
   if (std::strcmp(s, "GETCFG") == 0) {
     doGetCfg();
     return;
@@ -175,7 +180,6 @@ static void handleLine(const char* s) {
 void CfgUartBridge_Init(void) {
   s_lineLen = 0;
   s_jsonNeed = s_jsonGot = 0;
-  s_setKvMode = false;
   DBG.info("CFG bridge: USART6 ready");
 }
 
@@ -183,7 +187,6 @@ void CfgUartBridge_Tick(void) {
   uint8_t b = 0;
   if (HAL_UART_Receive(&huart6, &b, 1, 0) != HAL_OK) return;
 
-  // JSON receiving state
   if (s_jsonNeed) {
     if (s_jsonGot < sizeof(s_jsonBuf)) s_jsonBuf[s_jsonGot] = (char)b;
     s_jsonGot++;
@@ -196,7 +199,6 @@ void CfgUartBridge_Tick(void) {
     return;
   }
 
-  // Line receiving state
   if (b == '\r') return;
 
   if (b == '\n') {
