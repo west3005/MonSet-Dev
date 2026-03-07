@@ -1,4 +1,12 @@
-../Core/Src/main.cpp:372:17:void Error_Handler()	56	static,ignoring_inline_asm
-../Core/Src/main.cpp:115:6:void SystemClock_Config()	96	static
-../Core/Src/main.cpp:53:16:int main()	48	static
-../Core/Src/main.cpp:380:1:cpp)	0	static
+../Core/Src/main.cpp:193:17:void MX_GPIO_Init()	64	static
+../Core/Src/main.cpp:413:17:void Error_Handler()	56	static,ignoring_inline_asm
+../Core/Src/main.cpp:121:17:void SystemClock_Config()	96	static
+../Core/Src/main.cpp:264:17:void MX_USART1_UART_Init()	8	static
+../Core/Src/main.cpp:283:17:void MX_USART2_UART_Init()	8	static
+../Core/Src/main.cpp:302:17:void MX_USART3_UART_Init()	8	static
+../Core/Src/main.cpp:321:17:void MX_USART6_UART_Init()	8	static
+../Core/Src/main.cpp:340:17:void MX_I2C1_Init()	8	static
+../Core/Src/main.cpp:360:17:void MX_RNG_Init()	16	static
+../Core/Src/main.cpp:373:17:void MX_RTC_Init()	8	static
+../Core/Src/main.cpp:394:17:void MX_TIM6_Init()	8	static
+../Core/Src/main.cpp:56:16:int main()	10664	static
