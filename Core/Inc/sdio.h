@@ -9,8 +9,7 @@ extern "C" {
 #include "stm32f4xx_hal_sd.h"
 
 extern SD_HandleTypeDef   hsd;
-extern DMA_HandleTypeDef  hdma_sdio_rx;
-extern DMA_HandleTypeDef  hdma_sdio_tx;
+
 
 void MX_SDIO_SD_Init(void);
 
