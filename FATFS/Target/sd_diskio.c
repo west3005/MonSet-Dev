@@ -146,6 +146,7 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
     (void)lun;
     DRESULT res = RES_ERROR;
 
+    printf("[DISKIO] write: CORRECT FILE\r\n");
     printf("[DISKIO] write: sec=%lu cnt=%u\r\n",
            (unsigned long)sector, (unsigned)count);
 

@@ -43,11 +43,10 @@ void SdBackup::make_full_path(char* out, size_t out_sz, const char* fname) const
 {
   char drive[3];
   make_drive(drive, sizeof(drive));
-  std::snprintf(out, out_sz, "%s/%s", drive, fname); // "0:/backup.json"
+  std::snprintf(out, out_sz, "%s/%s", drive, fname);
 }
 
 bool SdBackup::init() {
-  // Если уже признали SD “сломанной” — даже не пытаемся
   if (m_broken) {
     DBG.warn("SD: previously marked as broken, skip init");
     m_mounted = false;
@@ -71,7 +70,7 @@ bool SdBackup::init() {
   if (fr != FR_OK) {
     DBG.error("SD: mount timeout, last FR=%d %s", (int)fr, frStr(fr));
     m_mounted = false;
-    m_broken  = true; // помечаем SD как нерабочую на весь срок работы
+    m_broken  = true;
     return false;
   }
 
@@ -119,8 +118,6 @@ bool SdBackup::remove()
   return true;
 }
 
-// ------------------------ свободное место + ротация ------------------------
-
 DWORD SdBackup::getFreeSpaceBytes() const
 {
   char drive[3];
@@ -134,28 +131,23 @@ DWORD SdBackup::getFreeSpaceBytes() const
     return 0;
   }
 
-  // Размер кластера в секторах * 512
   DWORD bytes = fre_clust * fs->csize * 512UL;
   return bytes;
 }
 
 bool SdBackup::checkAndRotateFile(FIL& f, const char* path)
 {
-  // Текущий размер файла
   FSIZE_t sz = f_size(&f);
 
   if (sz < MAX_BACKUP_FILE_SIZE) {
-    // Пока в лимите — ничего не делаем
     return true;
   }
 
-  // Если файл сильно разросся — удаляем его и создаём заново (самый простой ring-buffer).
   DBG.warn("SD: backup file too big (%lu bytes) -> rotate (truncate)",
            (unsigned long)sz);
 
   f_close(&f);
 
-  // Просто пересоздаём файл, теряя старый журнал
   FRESULT fr = f_open(&f, path, FA_CREATE_ALWAYS | FA_WRITE);
   if (fr != FR_OK) {
     DBG.error("SD: rotate reopen fail path=%s (FR=%d %s)", path, (int)fr, frStr(fr));
@@ -165,11 +157,68 @@ bool SdBackup::checkAndRotateFile(FIL& f, const char* path)
   return true;
 }
 
-// ------------------------------ appendLine ----------------------------------
+/* Запись строки с повторной попыткой при ошибке SDIO */
+static bool writeLineWithRetry(FIL& f, const char* data, UINT len, uint8_t maxRetries)
+{
+  FRESULT fr = FR_OK;
+  UINT bw = 0;
+
+  for (uint8_t attempt = 0; attempt < maxRetries; attempt++) {
+    if (attempt > 0) {
+      DBG.warn("SD: write retry %u/%u", (unsigned)attempt, (unsigned)maxRetries);
+      HAL_Delay(50); // Пауза перед повтором
+    }
+
+    fr = f_write(&f, data, len, &bw);
+
+    if (fr == FR_OK && bw == len) {
+      return true; // Успех
+    }
+
+    DBG.error("SD: write attempt %u failed (FR=%d %s bw=%u/%u)",
+              (unsigned)attempt + 1, (int)fr, frStr(fr), (unsigned)bw, (unsigned)len);
+
+    /* Если FR_DISK_ERR - пробуем ещё раз, иначе выходим */
+    if (fr != FR_DISK_ERR) {
+      break;
+    }
+
+    /* Синхронизируем перед повтором, чтобы сбросить состояние */
+    f_sync(&f);
+  }
+
+  return false;
+}
+
+/* Синхронизация с повторной попыткой */
+static bool syncWithRetry(FIL& f, uint8_t maxRetries)
+{
+  FRESULT fr = FR_OK;
+
+  for (uint8_t attempt = 0; attempt < maxRetries; attempt++) {
+    if (attempt > 0) {
+      DBG.warn("SD: sync retry %u/%u", (unsigned)attempt, (unsigned)maxRetries);
+      HAL_Delay(20);
+    }
+
+    fr = f_sync(&f);
+    if (fr == FR_OK) {
+      return true;
+    }
+
+    DBG.error("SD: sync attempt %u failed (FR=%d %s)",
+              (unsigned)attempt + 1, (int)fr, frStr(fr));
+  }
+
+  return false;
+}
 
 bool SdBackup::appendLine(const char* jsonLine)
 {
-  if (!m_mounted || !jsonLine) return false;
+  if (!m_mounted || !jsonLine) {
+    DBG.error("SD: appendLine not mounted or null");
+    return false;
+  }
 
   const size_t n = std::strlen(jsonLine);
 
@@ -185,8 +234,6 @@ bool SdBackup::appendLine(const char* jsonLine)
     }
   }
 
-  // Проверка свободного места — не пишем, если карта заполнена
-  // Оценка: размер строки + EOL + небольшой запас
   const DWORD freeBytes = getFreeSpaceBytes();
   const DWORD needBytes = (DWORD)n + 4U;
   if (freeBytes != 0 && freeBytes < needBytes) {
@@ -198,20 +245,34 @@ bool SdBackup::appendLine(const char* jsonLine)
   char path[64];
   make_full_path(path, sizeof(path), Config::BACKUP_FILENAME);
 
+  /* Повторные попытки открытия файла */
   FIL f{};
-  FRESULT fr = f_open(&f, path, FA_OPEN_ALWAYS | FA_WRITE);
+  FRESULT fr = FR_INT_ERR;
+  const uint8_t openRetries = 3;
+
+  for (uint8_t attempt = 0; attempt < openRetries; attempt++) {
+    if (attempt > 0) {
+      DBG.warn("SD: open retry %u/%u", (unsigned)attempt, (unsigned)openRetries);
+      HAL_Delay(50);
+    }
+
+    fr = f_open(&f, path, FA_OPEN_ALWAYS | FA_WRITE);
+    if (fr == FR_OK) break;
+
+    DBG.error("SD: open for append fail attempt %u path=%s (FR=%d %s)",
+              (unsigned)attempt + 1, path, (int)fr, frStr(fr));
+  }
+
   if (fr != FR_OK) {
-    DBG.error("SD: open for append fail path=%s (FR=%d %s)", path, (int)fr, frStr(fr));
+    DBG.error("SD: open for append failed after %u attempts", (unsigned)openRetries);
     return false;
   }
 
-  // Лимит размера файла + простая ротация (truncate)
   if (!checkAndRotateFile(f, path)) {
     f_close(&f);
     return false;
   }
 
-  // Пишем в конец
   fr = f_lseek(&f, f_size(&f));
   if (fr != FR_OK) {
     DBG.error("SD: lseek(end) fail path=%s (FR=%d %s)", path, (int)fr, frStr(fr));
@@ -219,28 +280,23 @@ bool SdBackup::appendLine(const char* jsonLine)
     return false;
   }
 
-  UINT bw = 0;
-  fr = f_write(&f, jsonLine, (UINT)n, &bw);
-  if (fr != FR_OK || bw != (UINT)n) {
-    DBG.error("SD: write line fail path=%s (FR=%d %s bw=%u/%u)",
-              path, (int)fr, frStr(fr), (unsigned)bw, (unsigned)n);
+  /* Запись данных с повтором */
+  if (!writeLineWithRetry(f, jsonLine, (UINT)n, 3)) {
+    DBG.error("SD: write line failed after retries");
     f_close(&f);
     return false;
   }
 
   const char eol[] = "\r\n";
-  UINT bw2 = 0;
-  fr = f_write(&f, eol, sizeof(eol) - 1, &bw2);
-  if (fr != FR_OK || bw2 != (sizeof(eol) - 1)) {
-    DBG.error("SD: write EOL fail path=%s (FR=%d %s bw=%u/%u)",
-              path, (int)fr, frStr(fr), (unsigned)bw2, (unsigned)(sizeof(eol) - 1));
+  if (!writeLineWithRetry(f, eol, sizeof(eol) - 1, 3)) {
+    DBG.error("SD: write EOL failed after retries");
     f_close(&f);
     return false;
   }
 
-  fr = f_sync(&f);
-  if (fr != FR_OK) {
-    DBG.error("SD: sync fail path=%s (FR=%d %s)", path, (int)fr, frStr(fr));
+  /* Синхронизация с повтором */
+  if (!syncWithRetry(f, 3)) {
+    DBG.error("SD: sync failed after retries");
     f_close(&f);
     return false;
   }
@@ -248,8 +304,6 @@ bool SdBackup::appendLine(const char* jsonLine)
   f_close(&f);
   return true;
 }
-
-// ------------------------ readChunkAsJsonArray ------------------------------
 
 bool SdBackup::readChunkAsJsonArray(char* out,
                                     uint32_t outSize,
@@ -283,7 +337,7 @@ bool SdBackup::readChunkAsJsonArray(char* out,
 
   while (true) {
     char* s = f_gets(line, sizeof(line), &f);
-    if (!s) break; // EOF
+    if (!s) break;
 
     lastPosAfterLine = f_tell(&f);
 
@@ -299,7 +353,7 @@ bool SdBackup::readChunkAsJsonArray(char* out,
       continue;
     }
 
-    uint32_t need = (linesRead ? 1u : 0u) + (uint32_t)n + 1u + 1u; // comma + line + ']' + '\0'
+    uint32_t need = (linesRead ? 1u : 0u) + (uint32_t)n + 1u + 1u;
     if (off + need > maxPayloadBytes) break;
     if (off + need > outSize)        break;
 
@@ -324,8 +378,6 @@ bool SdBackup::readChunkAsJsonArray(char* out,
 
   return true;
 }
-
-// ------------------------------- consumePrefix ------------------------------
 
 bool SdBackup::consumePrefix(FSIZE_t bytesUsedFromFile)
 {
