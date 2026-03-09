@@ -18,7 +18,7 @@ void MX_SDIO_SD_Init(void) {
   /* ИСПРАВЛЕНО: Включен аппаратный контроль потока для защиты от опустошения FIFO */
   hsd.Init.HardwareFlowControl = SDIO_HARDWARE_FLOW_CONTROL_ENABLE;
 
-  hsd.Init.ClockDiv = 2; // как было
+  hsd.Init.ClockDiv = 8; // как было
   uint32_t t0 = HAL_GetTick();
   HAL_StatusTypeDef st;
 

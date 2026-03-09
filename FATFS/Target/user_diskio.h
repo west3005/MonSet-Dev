@@ -1,24 +1,8 @@
-/* USER CODE BEGIN Header */
 /**
- ******************************************************************************
-  * @file    user_diskio.h
-  * @brief   This file contains the common defines and functions prototypes for
-  *          the user_diskio driver.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
- /* USER CODE END Header */
+ * @file user_diskio.h
+ * @brief User diskio driver header
+ */
 
-/* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __USER_DISKIO_H
 #define __USER_DISKIO_H
 
@@ -26,15 +10,13 @@
  extern "C" {
 #endif
 
-/* USER CODE BEGIN 0 */
+#include "ff_gen_drv.h"  // ← ДОБАВЛЕНО: для Diskio_drvTypeDef
 
-/* Includes ------------------------------------------------------------------*/
-/* Exported types ------------------------------------------------------------*/
-/* Exported constants --------------------------------------------------------*/
-/* Exported functions ------------------------------------------------------- */
-extern Diskio_drvTypeDef  USER_Driver;
+/* Exported types --------------------------------------------------------*/
+/* Exported constants --------------------------------------------------*/
+/* Exported functions --------------------------------------------------*/
 
-/* USER CODE END 0 */
+extern Diskio_drvTypeDef USER_Driver;
 
 #ifdef __cplusplus
 }
