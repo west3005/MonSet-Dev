@@ -4,6 +4,9 @@
   * @file    sd_diskio.c
   * @brief   SD Disk I/O driver — polling HAL, no DMA, no IRQ disable.
   *          SDIO_FLAG_DCRCFAIL cleared on error so retries work correctly.
+  *
+  * NOTE: This is a pure C file. Do NOT include C++ headers (debug_uart.hpp etc).
+  *       Logging uses uart_log_* wrappers declared in debug_uart_c.h.
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -15,17 +18,15 @@
 #include "stm32f4xx_hal_sd.h"
 #include "main.h"
 
+/* C-compatible log helpers — implemented in debug_uart.cpp as extern "C" */
+#include "debug_uart_c.h"
+
 /* Timeout: 30 seconds */
 #ifndef SD_TIMEOUT
 #define SD_TIMEOUT  (30U * 1000U)
 #endif
 
 #define SD_DEFAULT_BLOCK_SIZE  512U
-
-/* --- Log helpers (route through DBG if available) ----------------------- */
-#include "debug_uart.hpp"
-#define DISKIO_LOG(fmt, ...)  DBG.info("[DISKIO] " fmt, ##__VA_ARGS__)
-#define DISKIO_ERR(fmt, ...)  DBG.error("[DISKIO] " fmt, ##__VA_ARGS__)
 
 static volatile DSTATUS Stat = STA_NOINIT;
 
@@ -137,7 +138,7 @@ DSTATUS SD_initialize(BYTE lun)
   MODIFY_REG(SDIO->CLKCR, SDIO_CLKCR_CLKDIV, 0U);
 
   Stat = SD_CheckStatus(lun);
-  DISKIO_LOG("init: Stat=0x%02X", (unsigned)Stat);
+  uart_log_info("[DISKIO] init: Stat=0x%02X", (unsigned)Stat);
   return Stat;
 }
 
@@ -151,10 +152,11 @@ DRESULT SD_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
   HAL_StatusTypeDef hs;
   (void)lun;
 
-  if (Stat & STA_NOINIT)             { return RES_NOTRDY; }
+  if (Stat & STA_NOINIT)              { return RES_NOTRDY; }
   if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
 
-  DISKIO_LOG("read: sec=%lu cnt=%u", (unsigned long)sector, (unsigned)count);
+  uart_log_info("[DISKIO] read: sec=%lu cnt=%u",
+                (unsigned long)sector, (unsigned)count);
 
   /* No IRQ disable — SysTick must tick for HAL_GetTick() inside HAL */
   hs = HAL_SD_ReadBlocks(&hsd,
@@ -164,20 +166,20 @@ DRESULT SD_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
                          SD_TIMEOUT);
   if (hs != HAL_OK)
   {
-    DISKIO_ERR("read: HAL err=%d SDIO_STA=0x%08lX",
-               (int)hs, (unsigned long)SDIO->STA);
+    uart_log_error("[DISKIO] read: HAL err=%d STA=0x%08lX",
+                   (int)hs, (unsigned long)SDIO->STA);
     SD_ClearFlags();
     return RES_ERROR;
   }
 
   if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK)
   {
-    DISKIO_ERR("read: WaitReady timeout");
+    uart_log_error("[DISKIO] read: WaitReady timeout");
     SD_ClearFlags();
     return RES_ERROR;
   }
 
-  DISKIO_LOG("read: OK");
+  uart_log_info("[DISKIO] read: OK");
   return RES_OK;
 }
 
@@ -187,10 +189,11 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
   HAL_StatusTypeDef hs;
   (void)lun;
 
-  if (Stat & STA_NOINIT)             { return RES_NOTRDY; }
+  if (Stat & STA_NOINIT)              { return RES_NOTRDY; }
   if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
 
-  DISKIO_LOG("write: sec=%lu cnt=%u", (unsigned long)sector, (unsigned)count);
+  uart_log_info("[DISKIO] write: sec=%lu cnt=%u",
+                (unsigned long)sector, (unsigned)count);
 
   /* No IRQ disable — polling mode requires SysTick to be alive */
   hs = HAL_SD_WriteBlocks(&hsd,
@@ -200,21 +203,20 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
                           SD_TIMEOUT);
   if (hs != HAL_OK)
   {
-    DISKIO_ERR("write: HAL err=%d SDIO_STA=0x%08lX",
-               (int)hs, (unsigned long)SDIO->STA);
-    /* Clear error flags so next attempt has a clean state */
+    uart_log_error("[DISKIO] write: HAL err=%d STA=0x%08lX",
+                   (int)hs, (unsigned long)SDIO->STA);
     SD_ClearFlags();
     return RES_ERROR;
   }
 
   if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK)
   {
-    DISKIO_ERR("write: WaitReady timeout");
+    uart_log_error("[DISKIO] write: WaitReady timeout");
     SD_ClearFlags();
     return RES_ERROR;
   }
 
-  DISKIO_LOG("write: OK");
+  uart_log_info("[DISKIO] write: OK");
   return RES_OK;
 }
 #endif /* _USE_WRITE */
