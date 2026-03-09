@@ -43,8 +43,7 @@ DRESULT SD_write     (BYTE, const BYTE*, DWORD, UINT);
 DRESULT SD_ioctl     (BYTE, BYTE, void*);
 #endif
 
-const Diskio_drvTypeDef SD_Driver =
-{
+const Diskio_drvTypeDef SD_Driver = {
   SD_initialize,
   SD_status,
   SD_read,
@@ -61,30 +60,28 @@ const Diskio_drvTypeDef SD_Driver =
  * ========================================================================= */
 
 /**
- * @brief  Clear all SDIO error/status flags so the next operation starts clean.
+ * @brief Clear all SDIO error/status flags so the next operation starts clean.
  */
 static inline void SD_ClearFlags(void)
 {
   __HAL_SD_CLEAR_FLAG(&hsd,
-      SDIO_FLAG_CCRCFAIL | SDIO_FLAG_DCRCFAIL |
-      SDIO_FLAG_CTIMEOUT | SDIO_FLAG_DTIMEOUT |
-      SDIO_FLAG_TXUNDERR | SDIO_FLAG_RXOVERR  |
-      SDIO_FLAG_CMDREND  | SDIO_FLAG_CMDSENT  |
-      SDIO_FLAG_DATAEND  | SDIO_FLAG_STBITERR |
-      SDIO_FLAG_DBCKEND);
+    SDIO_FLAG_CCRCFAIL | SDIO_FLAG_DCRCFAIL |
+    SDIO_FLAG_CTIMEOUT | SDIO_FLAG_DTIMEOUT |
+    SDIO_FLAG_TXUNDERR | SDIO_FLAG_RXOVERR  |
+    SDIO_FLAG_CMDREND  | SDIO_FLAG_CMDSENT  |
+    SDIO_FLAG_DATAEND  | SDIO_FLAG_STBITERR |
+    SDIO_FLAG_DBCKEND);
 }
 
 /**
- * @brief  Poll until card enters TRANSFER state or timeout.
- * @note   Uses HAL_GetTick() — interrupts MUST remain enabled.
+ * @brief Poll until card enters TRANSFER state or timeout.
+ * @note  Uses HAL_GetTick() — interrupts MUST remain enabled.
  */
 static HAL_StatusTypeDef SD_WaitCardReady(uint32_t timeout_ms)
 {
   uint32_t t0 = HAL_GetTick();
-  while ((HAL_GetTick() - t0) < timeout_ms)
-  {
-    if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER)
-    {
+  while ((HAL_GetTick() - t0) < timeout_ms) {
+    if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
       return HAL_OK;
     }
     HAL_Delay(1);
@@ -96,8 +93,7 @@ static DSTATUS SD_CheckStatus(BYTE lun)
 {
   (void)lun;
   Stat = STA_NOINIT;
-  if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER)
-  {
+  if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
     Stat &= (DSTATUS)~STA_NOINIT;
   }
   return Stat;
@@ -113,8 +109,7 @@ DSTATUS SD_initialize(BYTE lun)
   Stat = STA_NOINIT;
 
   /* Already running — just check state */
-  if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER)
-  {
+  if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
     return SD_CheckStatus(lun);
   }
 
@@ -125,11 +120,6 @@ DSTATUS SD_initialize(BYTE lun)
   /* Low speed for identification phase (ClockDiv set in MX_SDIO_SD_Init) */
   MX_SDIO_SD_Init();
   if (hsd.State == HAL_SD_STATE_ERROR) { return Stat; }
-
-  if (HAL_SD_ConfigWideBusOperation(&hsd, SDIO_BUS_WIDE_1B) != HAL_OK)
-  {
-    return Stat;
-  }
 
   if (SD_WaitCardReady(2000U) != HAL_OK) { return Stat; }
 
@@ -152,28 +142,23 @@ DRESULT SD_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
   HAL_StatusTypeDef hs;
   (void)lun;
 
-  if (Stat & STA_NOINIT)              { return RES_NOTRDY; }
+  if (Stat & STA_NOINIT)             { return RES_NOTRDY; }
   if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
 
   uart_log_info("[DISKIO] read: sec=%lu cnt=%u",
                 (unsigned long)sector, (unsigned)count);
 
   /* No IRQ disable — SysTick must tick for HAL_GetTick() inside HAL */
-  hs = HAL_SD_ReadBlocks(&hsd,
-                         (uint8_t *)buff,
-                         (uint32_t)sector,
-                         (uint32_t)count,
-                         SD_TIMEOUT);
-  if (hs != HAL_OK)
-  {
+  hs = HAL_SD_ReadBlocks(&hsd, (uint8_t *)buff,
+                         (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
+  if (hs != HAL_OK) {
     uart_log_error("[DISKIO] read: HAL err=%d STA=0x%08lX",
                    (int)hs, (unsigned long)SDIO->STA);
     SD_ClearFlags();
     return RES_ERROR;
   }
 
-  if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK)
-  {
+  if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK) {
     uart_log_error("[DISKIO] read: WaitReady timeout");
     SD_ClearFlags();
     return RES_ERROR;
@@ -189,28 +174,27 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
   HAL_StatusTypeDef hs;
   (void)lun;
 
-  if (Stat & STA_NOINIT)              { return RES_NOTRDY; }
+  if (Stat & STA_NOINIT)             { return RES_NOTRDY; }
   if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
 
   uart_log_info("[DISKIO] write: sec=%lu cnt=%u",
                 (unsigned long)sector, (unsigned)count);
 
+  /* Clear any stale flags and give the card a moment to settle */
+  SD_ClearFlags();
+  HAL_Delay(1);
+
   /* No IRQ disable — polling mode requires SysTick to be alive */
-  hs = HAL_SD_WriteBlocks(&hsd,
-                          (uint8_t *)buff,
-                          (uint32_t)sector,
-                          (uint32_t)count,
-                          SD_TIMEOUT);
-  if (hs != HAL_OK)
-  {
+  hs = HAL_SD_WriteBlocks(&hsd, (uint8_t *)buff,
+                          (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
+  if (hs != HAL_OK) {
     uart_log_error("[DISKIO] write: HAL err=%d STA=0x%08lX",
                    (int)hs, (unsigned long)SDIO->STA);
     SD_ClearFlags();
     return RES_ERROR;
   }
 
-  if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK)
-  {
+  if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK) {
     uart_log_error("[DISKIO] write: WaitReady timeout");
     SD_ClearFlags();
     return RES_ERROR;
@@ -229,46 +213,38 @@ DRESULT SD_ioctl(BYTE lun, BYTE cmd, void *buff)
 
   if (Stat & STA_NOINIT) { return RES_NOTRDY; }
 
-  switch (cmd)
-  {
+  switch (cmd) {
     case CTRL_SYNC:
       /* Clear any stale error flags, then wait for card idle */
       SD_ClearFlags();
       res = (SD_WaitCardReady(SD_TIMEOUT) == HAL_OK) ? RES_OK : RES_ERROR;
       break;
 
-    case GET_SECTOR_COUNT:
-    {
+    case GET_SECTOR_COUNT: {
       HAL_SD_CardInfoTypeDef info;
       HAL_SD_GetCardInfo(&hsd, &info);
       *(DWORD *)buff = info.LogBlockNbr;
       res = RES_OK;
       break;
     }
-
-    case GET_SECTOR_SIZE:
-    {
+    case GET_SECTOR_SIZE: {
       HAL_SD_CardInfoTypeDef info;
       HAL_SD_GetCardInfo(&hsd, &info);
       *(WORD *)buff = (WORD)info.LogBlockSize;
       res = RES_OK;
       break;
     }
-
-    case GET_BLOCK_SIZE:
-    {
+    case GET_BLOCK_SIZE: {
       HAL_SD_CardInfoTypeDef info;
       HAL_SD_GetCardInfo(&hsd, &info);
       *(DWORD *)buff = info.LogBlockSize / SD_DEFAULT_BLOCK_SIZE;
       res = RES_OK;
       break;
     }
-
     default:
       res = RES_PARERR;
       break;
   }
-
   return res;
 }
 #endif /* _USE_IOCTL */
