@@ -1,11 +1,6 @@
 /**
- * @file user_diskio.c
+ * @file sd_diskio.c
  * @brief FatFS diskio через HAL_SD (polling mode).
- *
- * ИСПРАВЛЕНИЯ v2.4 SINGLE DRIVER:
- * 1. Только один драйвер USER_Driver
- * 2. Инициализация SDIO в USER_initialize
- * 3. Убран конфликт с SD_Driver
  */
 
 #include <stdio.h>
@@ -39,25 +34,26 @@ static void diskio_log(const char *fmt, ...)
 }
 
 /* Прототипы */
-DSTATUS USER_initialize(BYTE pdrv);
-DSTATUS USER_status(BYTE pdrv);
-DRESULT USER_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count);
+DSTATUS SD_initialize(BYTE pdrv);
+DSTATUS SD_status(BYTE pdrv);
+DRESULT SD_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count);
 #if _USE_WRITE == 1
-DRESULT USER_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count);
+DRESULT SD_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count);
 #endif
 #if _USE_IOCTL == 1
-DRESULT USER_ioctl(BYTE pdrv, BYTE cmd, void *buff);
+DRESULT SD_ioctl(BYTE pdrv, BYTE cmd, void *buff);
 #endif
 
-Diskio_drvTypeDef USER_Driver = {
-    USER_initialize,
-    USER_status,
-    USER_read,
+/* 🔴 ИМЯ СТРУКТУРЫ SD_Driver для совместимости с MX */
+const Diskio_drvTypeDef SD_Driver = {
+    SD_initialize,
+    SD_status,
+    SD_read,
 #if _USE_WRITE
-    USER_write,
+    SD_write,
 #endif
 #if _USE_IOCTL == 1
-    USER_ioctl,
+    SD_ioctl,
 #endif
 };
 
@@ -65,7 +61,7 @@ Diskio_drvTypeDef USER_Driver = {
 static uint8_t sd_wait_ready(uint32_t timeout_ms)
 {
     uint32_t tick = HAL_GetTick();
-    HAL_SD_CardStateTypeDef state;
+    HAL_SD_CardStateTypeDef state = HAL_SD_CARD_ERROR;  // ← Инициализация!
 
     while ((HAL_GetTick() - tick) < timeout_ms) {
         state = HAL_SD_GetCardState(&hsd);
@@ -84,7 +80,7 @@ static uint8_t sd_wait_ready(uint32_t timeout_ms)
     return 0;
 }
 
-DSTATUS USER_initialize(BYTE pdrv)
+DSTATUS SD_initialize(BYTE pdrv)
 {
     HAL_SD_CardInfoTypeDef info;
 
@@ -96,13 +92,7 @@ DSTATUS USER_initialize(BYTE pdrv)
     Stat = STA_NOINIT;
     diskio_log("[DISKIO] init: begin\r\n");
 
-    /* 🔴 Инициализация SDIO здесь, а не в MX_SDIO_SD_Init */
-    if (HAL_SD_Init(&hsd) != HAL_OK) {
-        diskio_log("[DISKIO] init: HAL_SD_Init failed\r\n");
-        return STA_NOINIT;
-    }
-
-    /* Ждём готовности */
+    /* HAL_SD_Init уже вызван в MX_SDIO_SD_Init, ждём готовности */
     if (!sd_wait_ready(SD_READY_WAIT_MS)) {
         diskio_log("[DISKIO] init: card not ready\r\n");
         return Stat;
@@ -122,7 +112,7 @@ DSTATUS USER_initialize(BYTE pdrv)
     return Stat;
 }
 
-DSTATUS USER_status(BYTE pdrv)
+DSTATUS SD_status(BYTE pdrv)
 {
     if (pdrv != 0) return STA_NOINIT;
 
@@ -136,13 +126,13 @@ DSTATUS USER_status(BYTE pdrv)
     return Stat;
 }
 
-DRESULT USER_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
+DRESULT SD_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
 {
     diskio_log("[DISKIO] read: sec=%lu cnt=%u\r\n",
                (unsigned long)sector, (unsigned)count);
 
     if (pdrv != 0 || buff == NULL || count == 0) return RES_PARERR;
-    if (USER_status(pdrv) & STA_NOINIT) {
+    if (SD_status(pdrv) & STA_NOINIT) {
         diskio_log("[DISKIO] read: not ready\r\n");
         return RES_NOTRDY;
     }
@@ -161,9 +151,9 @@ DRESULT USER_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
         return RES_ERROR;
     }
 
-    if (!sd_wait_ready(SD_TIMEOUT_MS)) {
-        diskio_log("[DISKIO] read: ready wait after read failed\r\n");
-        return RES_ERROR;
+    /* 🔴 Ждать окончания приёма данных */
+    while (__HAL_SD_GET_FLAG(&hsd, SDIO_FLAG_RXACT)) {
+        IWDG->KR = 0xAAAA;
     }
 
     diskio_log("[DISKIO] read: OK\r\n");
@@ -171,19 +161,24 @@ DRESULT USER_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
 }
 
 #if _USE_WRITE == 1
-DRESULT USER_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
+DRESULT SD_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
 {
-    diskio_log("[DISKIO] write: CORRECT FILE v2.4 SINGLE\r\n");
+    diskio_log("[DISKIO] write: CORRECT FILE v2.8 MX_SD\r\n");
     diskio_log("[DISKIO] write: sec=%lu cnt=%u\r\n",
                (unsigned long)sector, (unsigned)count);
 
     if (pdrv != 0 || buff == NULL || count == 0) return RES_PARERR;
-    if (USER_status(pdrv) & STA_NOINIT) {
+    if (SD_status(pdrv) & STA_NOINIT) {
         diskio_log("[DISKIO] write: not ready\r\n");
         return RES_NOTRDY;
     }
 
-    /* Ждём готовности */
+    /* 🔴 Ждать освобождения SDIO от любой предыдущей операции */
+    while (__HAL_SD_GET_FLAG(&hsd, SDIO_FLAG_TXACT) ||
+           __HAL_SD_GET_FLAG(&hsd, SDIO_FLAG_RXACT)) {
+        IWDG->KR = 0xAAAA;
+    }
+
     if (!sd_wait_ready(SD_READY_WAIT_MS)) {
         HAL_SD_CardStateTypeDef state = HAL_SD_GetCardState(&hsd);
         diskio_log("[DISKIO] write: card not ready, state=%d\r\n", (int)state);
@@ -201,6 +196,11 @@ DRESULT USER_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
         return RES_ERROR;
     }
 
+    /* Ждать окончания передачи */
+    while (__HAL_SD_GET_FLAG(&hsd, SDIO_FLAG_TXACT)) {
+        IWDG->KR = 0xAAAA;
+    }
+
     if (!sd_wait_ready(SD_TIMEOUT_MS)) {
         HAL_SD_CardStateTypeDef state = HAL_SD_GetCardState(&hsd);
         diskio_log("[DISKIO] write: ready wait failed, state=%d\r\n", (int)state);
@@ -214,7 +214,7 @@ DRESULT USER_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
 #endif
 
 #if _USE_IOCTL == 1
-DRESULT USER_ioctl(BYTE pdrv, BYTE cmd, void *buff)
+DRESULT SD_ioctl(BYTE pdrv, BYTE cmd, void *buff)
 {
     HAL_SD_CardInfoTypeDef info;
     DRESULT res = RES_ERROR;
@@ -227,7 +227,7 @@ DRESULT USER_ioctl(BYTE pdrv, BYTE cmd, void *buff)
         break;
 
     case GET_SECTOR_COUNT:
-        if (USER_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
+        if (SD_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
         if (HAL_SD_GetCardInfo(&hsd, &info) == HAL_OK) {
             *(DWORD*)buff = info.LogBlockNbr;
             res = RES_OK;
@@ -235,24 +235,24 @@ DRESULT USER_ioctl(BYTE pdrv, BYTE cmd, void *buff)
         break;
 
     case GET_SECTOR_SIZE:
-        if (USER_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
+        if (SD_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
         *(WORD*)buff = 512;
         res = RES_OK;
         break;
 
     case GET_BLOCK_SIZE:
-        if (USER_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
+        if (SD_status(pdrv) & STA_NOINIT) return RES_NOTRDY;
         if (HAL_SD_GetCardInfo(&hsd, &info) == HAL_OK) {
             *(DWORD*)buff = 1;
             res = RES_OK;
         }
         break;
 
-    default:
-        res = RES_PARERR;
-        break;
-    }
+            default:
+                res = RES_PARERR;
+                break;
+            }
 
-    return res;
-}
-#endif
+            return res;
+        }
+        #endif /* _USE_IOCTL == 1 */  // ← ДОБАВЛЕНО

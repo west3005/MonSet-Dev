@@ -1,6 +1,6 @@
 #include "sd_backup.hpp"
 #include "debug_uart.hpp"
-
+#include "fatfs.h"
 #include <cstring>
 #include <cstdio>
 
@@ -34,11 +34,10 @@ static const char* frStr(FRESULT fr)
 void SdBackup::make_drive(char* out, size_t out_sz) const
 {
   if (out_sz < 3) return;
-  out[0] = USERPath[0] ? USERPath[0] : '0';
+  out[0] = SDPath[0] ? SDPath[0] : '0';  // ← Исправлено: USERPath → SDPath
   out[1] = ':';
   out[2] = '\0';
 }
-
 void SdBackup::make_full_path(char* out, size_t out_sz, const char* fname) const
 {
   char drive[3];
