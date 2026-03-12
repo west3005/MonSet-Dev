@@ -124,8 +124,13 @@ DSTATUS SD_initialize(BYTE lun)
   if (SD_WaitCardReady(2000U) != HAL_OK) { return Stat; }
 
   /* Switch to normal operating speed after init (24 MHz: ClockDiv=0) */
+<<<<<<< HEAD
   hsd.Init.ClockDiv = 40U;
   MODIFY_REG(SDIO->CLKCR, SDIO_CLKCR_CLKDIV, 40U);
+=======
+  hsd.Init.ClockDiv = 0U;
+  MODIFY_REG(SDIO->CLKCR, SDIO_CLKCR_CLKDIV, 0U);
+>>>>>>> e0288c31b99ce296d5e80e4e68e4796860bf38b1
 
   Stat = SD_CheckStatus(lun);
   uart_log_info("[DISKIO] init: Stat=0x%02X", (unsigned)Stat);
@@ -180,6 +185,7 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
   uart_log_info("[DISKIO] write: sec=%lu cnt=%u",
                 (unsigned long)sector, (unsigned)count);
 
+<<<<<<< HEAD
   /*
    * 1. Сброс всех флагов перед началом.
    * Если предыдущая операция (например, RAW тест) оставила флаги, HAL вернет ошибку.
@@ -196,6 +202,15 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
   hs = HAL_SD_WriteBlocks(&hsd, (uint8_t *)buff,
                           (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
 
+=======
+  /* Clear any stale flags and give the card a moment to settle */
+  SD_ClearFlags();
+  HAL_Delay(1);
+
+  /* No IRQ disable — polling mode requires SysTick to be alive */
+  hs = HAL_SD_WriteBlocks(&hsd, (uint8_t *)buff,
+                          (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
+>>>>>>> e0288c31b99ce296d5e80e4e68e4796860bf38b1
   if (hs != HAL_OK) {
     uart_log_error("[DISKIO] write: HAL err=%d STA=0x%08lX",
                    (int)hs, (unsigned long)SDIO->STA);
@@ -203,6 +218,7 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
     return RES_ERROR;
   }
 
+<<<<<<< HEAD
   /*
    * 3. ЖЕСТКОЕ ОЖИДАНИЕ (как в тесте).
    * HAL_SD_WriteBlocks возвращает OK сразу после передачи в FIFO,
@@ -223,6 +239,14 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
    */
   SD_ClearFlags();
 
+=======
+  if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK) {
+    uart_log_error("[DISKIO] write: WaitReady timeout");
+    SD_ClearFlags();
+    return RES_ERROR;
+  }
+
+>>>>>>> e0288c31b99ce296d5e80e4e68e4796860bf38b1
   uart_log_info("[DISKIO] write: OK");
   return RES_OK;
 }

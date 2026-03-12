@@ -44,6 +44,7 @@ void HAL_SD_MspInit(SD_HandleTypeDef *hsd)
         HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
         /*
+<<<<<<< HEAD
          * Включаем Hardware Flow Control для предотвращения ошибок FIFO.
          * Это помогает при высоких частотах шины.
          */
@@ -52,6 +53,10 @@ void HAL_SD_MspInit(SD_HandleTypeDef *hsd)
         /*
          * SDIO global interrupt.
          * Priority 5 (lower than SysTick=0, higher than app tasks).
+=======
+         * SDIO global interrupt.
+         * Priority 5 (lower than SysTick=15, higher than app tasks).
+>>>>>>> e0288c31b99ce296d5e80e4e68e4796860bf38b1
          * Required by HAL_SD_IRQHandler to signal transfer complete
          * even in polling mode (HAL internally uses SDIO->STA flags
          * which are cleared via this handler path).
