@@ -1,29 +1,27 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file    sd_diskio.c
-  * @brief   SD Disk I/O driver — polling HAL, no DMA, no IRQ disable.
-  *          SDIO_FLAG_DCRCFAIL cleared on error so retries work correctly.
+  * @file sd_diskio.c
+  * @brief SD Disk I/O driver — polling HAL, no DMA, no IRQ disable.
+  *        SDIO_FLAG_DCRCFAIL cleared on error so retries work correctly.
   *
-  * NOTE: This is a pure C file. Do NOT include C++ headers (debug_uart.hpp etc).
+  * NOTE: This is a pure C file. Do NOT include C++ headers (debug_uart.hpp).
   *       Logging uses uart_log_* wrappers declared in debug_uart_c.h.
   ******************************************************************************
   */
 /* USER CODE END Header */
-
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
-
 #include "sdio.h"
 #include "stm32f4xx_hal_sd.h"
 #include "main.h"
 
-/* C-compatible log helpers — implemented in debug_uart.cpp as extern "C" */
+/* C-compatible log helpers */
 #include "debug_uart_c.h"
 
 /* Timeout: 30 seconds */
 #ifndef SD_TIMEOUT
-#define SD_TIMEOUT  (30U * 1000U)
+#define SD_TIMEOUT   (30U * 1000U)
 #endif
 
 #define SD_DEFAULT_BLOCK_SIZE  512U
@@ -35,23 +33,23 @@ static volatile DSTATUS Stat = STA_NOINIT;
  * ========================================================================= */
 DSTATUS SD_initialize(BYTE);
 DSTATUS SD_status    (BYTE);
-DRESULT SD_read      (BYTE, BYTE*, DWORD, UINT);
+DRESULT SD_read      (BYTE, BYTE *, DWORD, UINT);
 #if _USE_WRITE == 1
-DRESULT SD_write     (BYTE, const BYTE*, DWORD, UINT);
+DRESULT SD_write     (BYTE, const BYTE *, DWORD, UINT);
 #endif
 #if _USE_IOCTL == 1
-DRESULT SD_ioctl     (BYTE, BYTE, void*);
+DRESULT SD_ioctl     (BYTE, BYTE, void *);
 #endif
 
 const Diskio_drvTypeDef SD_Driver = {
-  SD_initialize,
-  SD_status,
-  SD_read,
+    SD_initialize,
+    SD_status,
+    SD_read,
 #if _USE_WRITE == 1
-  SD_write,
+    SD_write,
 #endif
 #if _USE_IOCTL == 1
-  SD_ioctl,
+    SD_ioctl,
 #endif
 };
 
@@ -64,39 +62,40 @@ const Diskio_drvTypeDef SD_Driver = {
  */
 static inline void SD_ClearFlags(void)
 {
-  __HAL_SD_CLEAR_FLAG(&hsd,
-    SDIO_FLAG_CCRCFAIL | SDIO_FLAG_DCRCFAIL |
-    SDIO_FLAG_CTIMEOUT | SDIO_FLAG_DTIMEOUT |
-    SDIO_FLAG_TXUNDERR | SDIO_FLAG_RXOVERR  |
-    SDIO_FLAG_CMDREND  | SDIO_FLAG_CMDSENT  |
-    SDIO_FLAG_DATAEND  | SDIO_FLAG_STBITERR |
-    SDIO_FLAG_DBCKEND);
+    __HAL_SD_CLEAR_FLAG(&hsd,
+        SDIO_FLAG_CCRCFAIL | SDIO_FLAG_DCRCFAIL |
+        SDIO_FLAG_CTIMEOUT | SDIO_FLAG_DTIMEOUT |
+        SDIO_FLAG_TXUNDERR | SDIO_FLAG_RXOVERR  |
+        SDIO_FLAG_CMDREND  | SDIO_FLAG_CMDSENT  |
+        SDIO_FLAG_DATAEND  | SDIO_FLAG_STBITERR |
+        SDIO_FLAG_DBCKEND);
 }
 
 /**
  * @brief Poll until card enters TRANSFER state or timeout.
  * @note  Uses HAL_GetTick() — interrupts MUST remain enabled.
+ *        Uses subtraction comparison to be overflow-safe.
  */
 static HAL_StatusTypeDef SD_WaitCardReady(uint32_t timeout_ms)
 {
-  uint32_t t0 = HAL_GetTick();
-  while ((HAL_GetTick() - t0) < timeout_ms) {
-    if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
-      return HAL_OK;
+    uint32_t t0 = HAL_GetTick();
+    while ((HAL_GetTick() - t0) < timeout_ms) {
+        if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
+            return HAL_OK;
+        }
+        HAL_Delay(1);
     }
-    HAL_Delay(1);
-  }
-  return HAL_TIMEOUT;
+    return HAL_TIMEOUT;
 }
 
 static DSTATUS SD_CheckStatus(BYTE lun)
 {
-  (void)lun;
-  Stat = STA_NOINIT;
-  if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
-    Stat &= (DSTATUS)~STA_NOINIT;
-  }
-  return Stat;
+    (void)lun;
+    Stat = STA_NOINIT;
+    if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
+        Stat &= (DSTATUS)~STA_NOINIT;
+    }
+    return Stat;
 }
 
 /* =========================================================================
@@ -105,193 +104,159 @@ static DSTATUS SD_CheckStatus(BYTE lun)
 
 DSTATUS SD_initialize(BYTE lun)
 {
-  (void)lun;
-  Stat = STA_NOINIT;
+    (void)lun;
+    Stat = STA_NOINIT;
 
-  /* Already running — just check state */
-  if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
-    return SD_CheckStatus(lun);
-  }
+    /* Already running — just check state */
+    if (HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER) {
+        return SD_CheckStatus(lun);
+    }
 
-  /* Re-init sequence */
-  SD_ClearFlags();
-  if (HAL_SD_DeInit(&hsd) != HAL_OK) { return Stat; }
+    /* Re-init sequence */
+    SD_ClearFlags();
+    if (HAL_SD_DeInit(&hsd) != HAL_OK) {
+        return Stat;
+    }
 
-  /* Low speed for identification phase (ClockDiv set in MX_SDIO_SD_Init) */
-  MX_SDIO_SD_Init();
-  if (hsd.State == HAL_SD_STATE_ERROR) { return Stat; }
+    /* Low speed for identification phase (ClockDiv set in MX_SDIO_SD_Init) */
+    MX_SDIO_SD_Init();
+    if (hsd.State == HAL_SD_STATE_ERROR) {
+        return Stat;
+    }
 
-  if (SD_WaitCardReady(2000U) != HAL_OK) { return Stat; }
+    if (SD_WaitCardReady(2000U) != HAL_OK) {
+        return Stat;
+    }
 
-  /* Switch to normal operating speed after init (24 MHz: ClockDiv=0) */
-<<<<<<< HEAD
-  hsd.Init.ClockDiv = 40U;
-  MODIFY_REG(SDIO->CLKCR, SDIO_CLKCR_CLKDIV, 40U);
-=======
-  hsd.Init.ClockDiv = 0U;
-  MODIFY_REG(SDIO->CLKCR, SDIO_CLKCR_CLKDIV, 0U);
->>>>>>> e0288c31b99ce296d5e80e4e68e4796860bf38b1
+    /*
+     * Switch to normal operating speed after init: 24 MHz (ClockDiv=0).
+     * SDIO_CK = SDIOCLK(48 MHz) / (0+2) = 24 MHz — максимум для 1-bit шины.
+     * HWFC отключён в sdio.c (errata F4 §2.7.1), поэтому ClockDiv=0 безопасен.
+     */
+    hsd.Init.ClockDiv = 0U;
+    MODIFY_REG(SDIO->CLKCR, SDIO_CLKCR_CLKDIV, 0U);
 
-  Stat = SD_CheckStatus(lun);
-  uart_log_info("[DISKIO] init: Stat=0x%02X", (unsigned)Stat);
-  return Stat;
+    Stat = SD_CheckStatus(lun);
+    uart_log_info("[DISKIO] init: Stat=0x%02X", (unsigned)Stat);
+    return Stat;
 }
 
 DSTATUS SD_status(BYTE lun)
 {
-  return SD_CheckStatus(lun);
+    return SD_CheckStatus(lun);
 }
 
 DRESULT SD_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
 {
-  HAL_StatusTypeDef hs;
-  (void)lun;
+    HAL_StatusTypeDef hs;
+    (void)lun;
 
-  if (Stat & STA_NOINIT)             { return RES_NOTRDY; }
-  if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
+    if (Stat & STA_NOINIT)            { return RES_NOTRDY; }
+    if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
 
-  uart_log_info("[DISKIO] read: sec=%lu cnt=%u",
-                (unsigned long)sector, (unsigned)count);
+    uart_log_info("[DISKIO] read: sec=%lu cnt=%u",
+                  (unsigned long)sector, (unsigned)count);
 
-  /* No IRQ disable — SysTick must tick for HAL_GetTick() inside HAL */
-  hs = HAL_SD_ReadBlocks(&hsd, (uint8_t *)buff,
-                         (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
-  if (hs != HAL_OK) {
-    uart_log_error("[DISKIO] read: HAL err=%d STA=0x%08lX",
-                   (int)hs, (unsigned long)SDIO->STA);
-    SD_ClearFlags();
-    return RES_ERROR;
-  }
+    hs = HAL_SD_ReadBlocks(&hsd, (uint8_t *)buff,
+                           (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
+    if (hs != HAL_OK) {
+        uart_log_error("[DISKIO] read: HAL err=%d STA=0x%08lX",
+                       (int)hs, (unsigned long)SDIO->STA);
+        SD_ClearFlags();
+        return RES_ERROR;
+    }
 
-  if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK) {
-    uart_log_error("[DISKIO] read: WaitReady timeout");
-    SD_ClearFlags();
-    return RES_ERROR;
-  }
+    if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK) {
+        uart_log_error("[DISKIO] read: WaitReady timeout");
+        SD_ClearFlags();
+        return RES_ERROR;
+    }
 
-  uart_log_info("[DISKIO] read: OK");
-  return RES_OK;
+    uart_log_info("[DISKIO] read: OK");
+    return RES_OK;
 }
 
 #if _USE_WRITE == 1
 DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
 {
-  HAL_StatusTypeDef hs;
-  (void)lun;
+    HAL_StatusTypeDef hs;
+    (void)lun;
 
-  if (Stat & STA_NOINIT)             { return RES_NOTRDY; }
-  if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
+    if (Stat & STA_NOINIT)            { return RES_NOTRDY; }
+    if ((buff == NULL) || (count == 0U)) { return RES_PARERR; }
 
-  uart_log_info("[DISKIO] write: sec=%lu cnt=%u",
-                (unsigned long)sector, (unsigned)count);
+    uart_log_info("[DISKIO] write: sec=%lu cnt=%u",
+                  (unsigned long)sector, (unsigned)count);
 
-<<<<<<< HEAD
-  /*
-   * 1. Сброс всех флагов перед началом.
-   * Если предыдущая операция (например, RAW тест) оставила флаги, HAL вернет ошибку.
-   */
-  SD_ClearFlags();
-
-  /* Даем карте "вздохнуть" после сброса флагов */
-  HAL_Delay(5);
-
-  /*
-   * 2. Вызов записи. Используем приведение типа к (uint8_t *),
-   * так как FatFs передает const BYTE *.
-   */
-  hs = HAL_SD_WriteBlocks(&hsd, (uint8_t *)buff,
-                          (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
-
-=======
-  /* Clear any stale flags and give the card a moment to settle */
-  SD_ClearFlags();
-  HAL_Delay(1);
-
-  /* No IRQ disable — polling mode requires SysTick to be alive */
-  hs = HAL_SD_WriteBlocks(&hsd, (uint8_t *)buff,
-                          (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
->>>>>>> e0288c31b99ce296d5e80e4e68e4796860bf38b1
-  if (hs != HAL_OK) {
-    uart_log_error("[DISKIO] write: HAL err=%d STA=0x%08lX",
-                   (int)hs, (unsigned long)SDIO->STA);
+    /* Clear any stale flags and give the card a moment to settle */
     SD_ClearFlags();
-    return RES_ERROR;
-  }
-
-<<<<<<< HEAD
-  /*
-   * 3. ЖЕСТКОЕ ОЖИДАНИЕ (как в тесте).
-   * HAL_SD_WriteBlocks возвращает OK сразу после передачи в FIFO,
-   * но карта еще может дописывать данные во Flash.
-   */
-  uint32_t timeout = HAL_GetTick() + SD_TIMEOUT;
-  while (HAL_SD_GetCardState(&hsd) != HAL_SD_CARD_TRANSFER) {
-    if (HAL_GetTick() > timeout) {
-      uart_log_error("[DISKIO] write: State timeout");
-      return RES_ERROR;
-    }
-    /* Небольшая пауза, чтобы не забивать шину запросами состояния */
     HAL_Delay(1);
-  }
 
-  /*
-   * 4. Финальная очистка флагов завершения
-   */
-  SD_ClearFlags();
+    /* No IRQ disable — polling mode requires SysTick to be alive */
+    hs = HAL_SD_WriteBlocks(&hsd, (uint8_t *)buff,
+                            (uint32_t)sector, (uint32_t)count, SD_TIMEOUT);
+    if (hs != HAL_OK) {
+        uart_log_error("[DISKIO] write: HAL err=%d STA=0x%08lX",
+                       (int)hs, (unsigned long)SDIO->STA);
+        SD_ClearFlags();
+        return RES_ERROR;
+    }
 
-=======
-  if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK) {
-    uart_log_error("[DISKIO] write: WaitReady timeout");
-    SD_ClearFlags();
-    return RES_ERROR;
-  }
+    /*
+     * Ожидаем перехода карты в TRANSFER (overflow-safe: использует вычитание).
+     * HAL_GetTick() + SD_TIMEOUT — классический overflow-баг на embedded,
+     * SD_WaitCardReady использует (GetTick() - t0) < timeout_ms.
+     */
+    if (SD_WaitCardReady(SD_TIMEOUT) != HAL_OK) {
+        uart_log_error("[DISKIO] write: WaitReady timeout");
+        SD_ClearFlags();
+        return RES_ERROR;
+    }
 
->>>>>>> e0288c31b99ce296d5e80e4e68e4796860bf38b1
-  uart_log_info("[DISKIO] write: OK");
-  return RES_OK;
+    uart_log_info("[DISKIO] write: OK");
+    return RES_OK;
 }
 #endif /* _USE_WRITE */
 
 #if _USE_IOCTL == 1
 DRESULT SD_ioctl(BYTE lun, BYTE cmd, void *buff)
 {
-  (void)lun;
-  DRESULT res = RES_ERROR;
+    (void)lun;
+    DRESULT res = RES_ERROR;
 
-  if (Stat & STA_NOINIT) { return RES_NOTRDY; }
+    if (Stat & STA_NOINIT) { return RES_NOTRDY; }
 
-  switch (cmd) {
-    case CTRL_SYNC:
-      /* Clear any stale error flags, then wait for card idle */
-      SD_ClearFlags();
-      res = (SD_WaitCardReady(SD_TIMEOUT) == HAL_OK) ? RES_OK : RES_ERROR;
-      break;
-
-    case GET_SECTOR_COUNT: {
-      HAL_SD_CardInfoTypeDef info;
-      HAL_SD_GetCardInfo(&hsd, &info);
-      *(DWORD *)buff = info.LogBlockNbr;
-      res = RES_OK;
-      break;
+    switch (cmd) {
+        case CTRL_SYNC: {
+            SD_ClearFlags();
+            res = (SD_WaitCardReady(SD_TIMEOUT) == HAL_OK) ? RES_OK : RES_ERROR;
+            break;
+        }
+        case GET_SECTOR_COUNT: {
+            HAL_SD_CardInfoTypeDef info;
+            HAL_SD_GetCardInfo(&hsd, &info);
+            *(DWORD *)buff = info.LogBlockNbr;
+            res = RES_OK;
+            break;
+        }
+        case GET_SECTOR_SIZE: {
+            HAL_SD_CardInfoTypeDef info;
+            HAL_SD_GetCardInfo(&hsd, &info);
+            *(WORD *)buff = (WORD)info.LogBlockSize;
+            res = RES_OK;
+            break;
+        }
+        case GET_BLOCK_SIZE: {
+            HAL_SD_CardInfoTypeDef info;
+            HAL_SD_GetCardInfo(&hsd, &info);
+            *(DWORD *)buff = info.LogBlockSize / SD_DEFAULT_BLOCK_SIZE;
+            res = RES_OK;
+            break;
+        }
+        default:
+            res = RES_PARERR;
+            break;
     }
-    case GET_SECTOR_SIZE: {
-      HAL_SD_CardInfoTypeDef info;
-      HAL_SD_GetCardInfo(&hsd, &info);
-      *(WORD *)buff = (WORD)info.LogBlockSize;
-      res = RES_OK;
-      break;
-    }
-    case GET_BLOCK_SIZE: {
-      HAL_SD_CardInfoTypeDef info;
-      HAL_SD_GetCardInfo(&hsd, &info);
-      *(DWORD *)buff = info.LogBlockSize / SD_DEFAULT_BLOCK_SIZE;
-      res = RES_OK;
-      break;
-    }
-    default:
-      res = RES_PARERR;
-      break;
-  }
-  return res;
+    return res;
 }
 #endif /* _USE_IOCTL */
