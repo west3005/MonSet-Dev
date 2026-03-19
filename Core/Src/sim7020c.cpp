@@ -191,7 +191,7 @@ void SIM7020C::powerOn()
 
     // PWRKEY: импульс LOW ≥500 мс для включения
     HAL_GPIO_WritePin(PIN_CELL_PWRKEY_PORT, PIN_CELL_PWRKEY_PIN, GPIO_PIN_RESET);
-    HAL_Delay(600);
+    HAL_Delay(1200);
     HAL_GPIO_WritePin(PIN_CELL_PWRKEY_PORT, PIN_CELL_PWRKEY_PIN, GPIO_PIN_SET);
 
     DBG.info("SIM7020C: ожидание RDY...");
