@@ -1,0 +1,9 @@
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:471:12:pk_get_pk_alg	32	static
+C:/Users/My/STM32CubeIDE/workspace_1.13.2/MonSet/Middlewares/Third_Party/mbedTLS/include/mbedtls/pk.h:1037:36:mbedtls_pk_rsa	16	static
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:389:12:pk_use_ecparams	224	static
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:604:12:pk_parse_key_sec1_der	64	static
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:742:12:pk_parse_key_pkcs8_unencrypted_der	80	static
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:865:29:mbedtls_pk_parse_key_pkcs8_encrypted_der	104	static
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:517:5:mbedtls_pk_parse_subpubkey	56	static
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:973:5:mbedtls_pk_parse_key	72	static
+../Middlewares/Third_Party/mbedTLS/library/pkparse.c:1180:5:mbedtls_pk_parse_public_key	72	static

@@ -1,0 +1,9 @@
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:37:12:ssl_cache_find_entry	32	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:114:13:ssl_cache_entry_zeroize	8	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:24:6:mbedtls_ssl_cache_init	0	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:74:5:mbedtls_ssl_cache_get	16	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:246:5:mbedtls_ssl_cache_set	64	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:321:5:mbedtls_ssl_cache_remove	24	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:371:6:mbedtls_ssl_cache_set_timeout	0	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:381:6:mbedtls_ssl_cache_set_max_entries	0	static
+../Middlewares/Third_Party/mbedTLS/library/ssl_cache.c:390:6:mbedtls_ssl_cache_free	16	static

@@ -1,0 +1,11 @@
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:124:14:mbedtls_cipher_values_from_psa	16	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:267:30:mbedtls_cipher_info_from_psa	40	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:291:21:psa_cipher_setup.constprop	64	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:369:14:mbedtls_psa_cipher_encrypt_setup	4	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:380:14:mbedtls_psa_cipher_decrypt_setup	4	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:391:14:mbedtls_psa_cipher_set_iv	8	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:508:14:mbedtls_psa_cipher_update	56	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:561:14:mbedtls_psa_cipher_finish	48	static,ignoring_inline_asm
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:620:14:mbedtls_psa_cipher_abort	8	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:634:14:mbedtls_psa_cipher_encrypt	128	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_cipher.c:692:14:mbedtls_psa_cipher_decrypt	120	static

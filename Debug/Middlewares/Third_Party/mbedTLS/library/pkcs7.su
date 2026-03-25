@@ -1,0 +1,8 @@
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:243:13:pkcs7_free_signer_info	16	static
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:642:12:mbedtls_pkcs7_data_or_hash_verify	64	static
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:277:12:pkcs7_get_signer_info	40	static
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:35:6:mbedtls_pkcs7_init	0	static
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:722:5:mbedtls_pkcs7_signed_data_verify	16	static
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:733:5:mbedtls_pkcs7_signed_hash_verify	16	static
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:747:6:mbedtls_pkcs7_free	16	static
+../Middlewares/Third_Party/mbedTLS/library/pkcs7.c:553:5:mbedtls_pkcs7_parse_der	88	static

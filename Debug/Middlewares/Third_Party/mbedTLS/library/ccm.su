@@ -1,0 +1,16 @@
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:156:12:ccm_calculate_first_block_if_ready	32	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:123:12:mbedtls_ccm_crypt	64	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:47:6:mbedtls_ccm_init	0	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:52:5:mbedtls_ccm_setkey	24	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:100:6:mbedtls_ccm_free	8	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:223:5:mbedtls_ccm_starts	24	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:261:5:mbedtls_ccm_set_lengths	8	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:290:5:mbedtls_ccm_update_ad	48	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:359:5:mbedtls_ccm_update	88	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:473:5:mbedtls_ccm_finish	24	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:514:12:ccm_auth_crypt	56	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:550:5:mbedtls_ccm_star_encrypt_and_tag	40	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:560:5:mbedtls_ccm_encrypt_and_tag	40	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:610:5:mbedtls_ccm_star_auth_decrypt	72	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:621:5:mbedtls_ccm_auth_decrypt	72	static
+../Middlewares/Third_Party/mbedTLS/library/ccm.c:682:5:mbedtls_ccm_self_test	272	static

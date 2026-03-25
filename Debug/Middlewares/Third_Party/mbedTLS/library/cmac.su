@@ -1,0 +1,11 @@
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:55:12:cmac_multiply_by_u	16	static,ignoring_inline_asm
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:96:12:cmac_generate_subkeys	56	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:729:12:cmac_test_subkeys.constprop	152	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:156:5:mbedtls_cipher_cmac_starts	16	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:198:5:mbedtls_cipher_cmac_update	56	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:268:5:mbedtls_cipher_cmac_finish	96	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:327:5:mbedtls_cipher_cmac_reset	16	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:347:5:mbedtls_cipher_cmac	104	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:823:12:cmac_test_wth_cipher.constprop	80	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:387:5:mbedtls_aes_cmac_prf_128	72	static
+../Middlewares/Third_Party/mbedTLS/library/cmac.c:915:5:mbedtls_cmac_self_test	88	static

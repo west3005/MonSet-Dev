@@ -1,0 +1,15 @@
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:331:5:psa_is_valid_key_id	3
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:383:21:psa_get_and_lock_key_slot_in_memory	12
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:430:14:psa_initialize_key_slots	2
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:451:6:psa_wipe_all_key_slots	5
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:555:14:psa_free_key_slot	5
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:595:14:psa_reserve_free_key_slot	18
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:798:14:psa_get_and_lock_key_slot	3
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:891:14:psa_unregister_read	6
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:925:14:psa_unregister_read_under_mutex	1
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:943:14:psa_validate_key_location	1
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:968:14:psa_validate_key_persistence	1
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:987:14:psa_open_key	1
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:1015:14:psa_close_key	4
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:1056:14:psa_purge_key	4
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_slot_management.c:1091:6:mbedtls_psa_get_stats	10

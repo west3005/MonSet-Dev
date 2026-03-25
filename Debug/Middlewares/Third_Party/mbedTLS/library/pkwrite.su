@@ -1,0 +1,9 @@
+../Middlewares/Third_Party/mbedTLS/library/pk_internal.h:86:36:mbedtls_pk_get_ec_group_id	16	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:230:12:pk_write_ec_param	24	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:119:12:pk_write_ec_pubkey	176	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:192:12:pk_write_ec_private	96	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:419:5:mbedtls_pk_write_pubkey	24	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:445:5:mbedtls_pk_write_pubkey_der	64	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:512:5:mbedtls_pk_write_key_der	72	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:552:5:mbedtls_pk_write_pubkey_pem	48	static
+../Middlewares/Third_Party/mbedTLS/library/pkwrite.c:579:5:mbedtls_pk_write_key_pem	48	static

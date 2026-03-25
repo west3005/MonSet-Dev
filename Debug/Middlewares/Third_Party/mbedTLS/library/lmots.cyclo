@@ -1,0 +1,7 @@
+../Middlewares/Third_Party/mbedTLS/library/lmots.c:364:5:mbedtls_lms_error_from_psa	5
+../Middlewares/Third_Party/mbedTLS/library/lmots.c:383:6:mbedtls_lmots_public_init	1
+../Middlewares/Third_Party/mbedTLS/library/lmots.c:388:6:mbedtls_lmots_public_free	2
+../Middlewares/Third_Party/mbedTLS/library/lmots.c:397:5:mbedtls_lmots_import_public_key	6
+../Middlewares/Third_Party/mbedTLS/library/lmots.c:431:5:mbedtls_lmots_export_public_key	5
+../Middlewares/Third_Party/mbedTLS/library/lmots.c:463:5:mbedtls_lmots_calculate_public_key_candidate	37
+../Middlewares/Third_Party/mbedTLS/library/lmots.c:513:5:mbedtls_lmots_verify	9

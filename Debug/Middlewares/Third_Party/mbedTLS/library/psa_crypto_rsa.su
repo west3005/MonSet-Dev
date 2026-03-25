@@ -1,0 +1,11 @@
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:499:12:psa_rsa_oaep_set_padding_mode	16	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:287:21:psa_rsa_decode_md_type	16	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:59:14:mbedtls_psa_rsa_load_representation	40	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:151:14:mbedtls_psa_rsa_export_key	24	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:109:14:mbedtls_psa_rsa_import_key	40	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:190:14:mbedtls_psa_rsa_export_public_key	40	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:240:14:mbedtls_psa_rsa_generate_key	144	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:316:14:mbedtls_psa_rsa_sign_hash	64	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:415:14:mbedtls_psa_rsa_verify_hash	64	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:515:14:mbedtls_psa_asymmetric_encrypt	64	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_rsa.c:609:14:mbedtls_psa_asymmetric_decrypt	72	static

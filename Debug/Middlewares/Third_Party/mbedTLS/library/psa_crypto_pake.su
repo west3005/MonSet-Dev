@@ -1,0 +1,6 @@
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_pake.c:105:21:mbedtls_ecjpake_to_psa_error	0	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_pake.c:391:14:mbedtls_psa_pake_output	40	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_pake.c:510:14:mbedtls_psa_pake_input	32	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_pake.c:521:14:mbedtls_psa_pake_get_implicit_key	24	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_pake.c:548:14:mbedtls_psa_pake_abort	16	static
+../Middlewares/Third_Party/mbedTLS/library/psa_crypto_pake.c:155:14:mbedtls_psa_pake_setup	88	static
