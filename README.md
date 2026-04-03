@@ -68,55 +68,9 @@ INIT → ETHERNET_INIT → NTP_SYNC → MODEM_INIT → SENSORS_POLL → SEND_DAT
 
 Подробные задачи: [Issues](https://github.com/west3005/MonSet-Dev/issues)
 
-## Быстрый старт
-
 ### Требования
-- STM32CubeIDE 1.13+
-- ST-Link v2 или J-Link
-- SD-карта FAT32 с файлом `config.json`
 
 ### Конфигурация (config.json на SD)
-```json
-{
-  "device_id": "monset-001",
-  "mqtt_host": "thingsboard.cloud",
-  "mqtt_port": 1883,
-  "mqtt_token": "YOUR_TOKEN",
-  "modbus_baud": 9600,
-  "sensors": [
-    {"id": 1, "type": "415-DI", "address": 1},
-    {"id": 2, "type": "ULM-31", "address": 2}
-  ],
-  "send_interval_sec": 60,
-  "eth_dhcp": true,
-  "ip": "192.168.1.100",
-  "gateway": "192.168.1.1",
-  "subnet": "255.255.255.0"
-}
-```
-
-### Сборка и прошивка
-```bash
-# Клонировать репозиторий
-git clone https://github.com/west3005/MonSet-Dev.git
-
-# Открыть в STM32CubeIDE
-# File → Open Projects from File System → выбрать папку
-
-# Сборка: Ctrl+B
-# Прошивка: Run → Run (ST-Link должен быть подключён)
-```
-
-## Критерии версии 1.0 (продаваемая)
-
-- [ ] Стабильная работа 72+ часов без зависаний
-- [ ] Автовосстановление после любого сбоя (watchdog)
-- [ ] Веб-интерфейс настройки через Wi-Fi (ESP8266)
-- [ ] Логирование на SD с ротацией файлов
-- [ ] Надёжная отправка MQTT (очередь, повторные попытки)
-- [ ] Документация для монтажника (PDF)
-- [ ] Корпус DIN-рейка
-- [ ] Тест при -20°C и +60°C
 
 ## Лицензия
 
